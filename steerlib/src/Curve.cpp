@@ -42,27 +42,30 @@ void Curve::drawCurve(Color curveColor, float curveThickness, int window) {
 	if (!checkRobust()) {
 		return;
 	}
-	Point startingPoint = controlPoints[0].position;
+	Point startingPoint;
 	Point finalPoint;
 	int size = controlPoints.size();
-	int iteration = (int)((controlPoints[size-1].time-controlPoints[0].time)/window);
-	float time = window;
-	int i;
-	for(i=0; i < iteration-1; i++){
-		calculatePoint(finalPoint, time);
+	float lastPointTime = controlPoints[size-1].time;
+	float i;
+	for(i=0; i < lastPointTime; i+=window){
+		calculatePoint(startingPoint,i);
+		if(i+window < lastPointTime){
+			calculatePoint(finalPoint,i+window);
+		}
+		else{
+			calculatePoint(finalPoint,lastPointTime);
+		}
 		DrawLib::drawLine(startingPoint, finalPoint, curveColor, curveThickness);
-		startingPoint = finalPoint;
-		time +=window;
 	}
-	finalPoint = controlPoints[size-1].position;
-	DrawLib::drawLine(startingPoint, finalPoint, curveColor, curveThickness);
+
 	// Robustness: make sure there is at least two control point: start and end points
 	// Move on the curve from t=0 to t=finalPoint, using window as step size, and linearly interpolate the curve points
 	// Note that you must draw the whole curve at each frame, that means connecting line segments between each two points on the curve
+
 	return;
 #endif
 }
-
+//Comp function sort curvePoint by distance
 bool disComp(const CurvePoint &P1, const CurvePoint &P2) {
 	
 	return (P1.time<P2.time);
@@ -73,7 +76,6 @@ void Curve::sortControlPoints() {
 	std::sort(controlPoints.begin(), controlPoints.end(), disComp);
 	return;
 }
-
 
 // Calculate the position on curve corresponding to the given time, outputPoint is the resulting position
 // Note that this function should return false if the end of the curve is reached, or no next point can be found
@@ -134,8 +136,8 @@ Point Curve::useHermiteCurve(const unsigned int nextPoint, const float time)
 	Point newPosition;
 	float normalTime, intervalTime;
 
-	unsigned int sPoint = nextPoint-1;		//starting point
-	unsigned int ePoint = nextPoint;			//end point
+	int sPoint = nextPoint-1;		//starting point
+	int ePoint = nextPoint;			//end point
 
 	intervalTime = controlPoints[ePoint].time - controlPoints[sPoint].time;
 	normalTime = (time - controlPoints[sPoint].time) / intervalTime;
@@ -168,7 +170,7 @@ Point Curve::useCatmullCurve(const unsigned int nextPoint, const float time) {
 
 
 	Point m0;
-	if (nextPoint-1 == 0) {//if is first point
+	if (nextPoint-1 == 0) {//if p0 is first point
 		Point current = controlPoints[nextPoint - 1].position;
 		Point after = controlPoints[nextPoint - 1 + 1].position;
 
@@ -176,7 +178,7 @@ Point Curve::useCatmullCurve(const unsigned int nextPoint, const float time) {
 		m0.y = after.y - current.y;
 		m0.z = after.z - current.z;
 	}
-	else if (nextPoint - 1 == controlPoints.size() - 1) {//if is last point
+	else if (nextPoint - 1 == controlPoints.size() - 1) {//if p0 is last point
 		Point current = controlPoints[nextPoint - 1].position;
 		Point before = controlPoints[nextPoint - 1 - 1].position;
 
@@ -184,7 +186,7 @@ Point Curve::useCatmullCurve(const unsigned int nextPoint, const float time) {
 		m0.y = current.y - before.y;
 		m0.z = current.z - before.z;
 	}
-	else {//if is point in the middle
+	else {//if p0 is point in the middle
 		Point before = controlPoints[nextPoint - 1 - 1].position;
 		Point after = controlPoints[nextPoint - 1 + 1].position;
 		Point current = controlPoints[nextPoint - 1].position;
@@ -194,7 +196,7 @@ Point Curve::useCatmullCurve(const unsigned int nextPoint, const float time) {
 		m0.z = 0.5f*(after.z - before.z);
 	}
 	Point m1;
-	if (nextPoint == 0) {//if is first point
+	if (nextPoint == 0) {//if p1 is first point
 		Point current = controlPoints[nextPoint].position;
 		Point after = controlPoints[nextPoint + 1].position;
 
@@ -202,7 +204,7 @@ Point Curve::useCatmullCurve(const unsigned int nextPoint, const float time) {
 		m1.y = after.y - current.y;
 		m1.z = after.z - current.z;
 	}
-	else if (nextPoint == controlPoints.size() - 1) {//if is last point
+	else if (nextPoint == controlPoints.size() - 1) {//if p1 is last point
 		Point current = controlPoints[nextPoint].position;
 		Point before = controlPoints[nextPoint - 1].position;
 
@@ -210,7 +212,7 @@ Point Curve::useCatmullCurve(const unsigned int nextPoint, const float time) {
 		m1.y = current.y - before.y;
 		m1.z = current.z - before.z;
 	}
-	else {//if is point in the middle
+	else {//if p1 is point in the middle
 		Point before = controlPoints[nextPoint - 1].position;
 		Point after = controlPoints[nextPoint + 1].position;
 		Point current = controlPoints[nextPoint].position;
