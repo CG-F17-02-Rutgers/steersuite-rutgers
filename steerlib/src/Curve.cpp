@@ -71,6 +71,11 @@ bool disComp(const CurvePoint &P1, const CurvePoint &P2) {
 void Curve::sortControlPoints() {
 
 	std::sort(controlPoints.begin(), controlPoints.end(), disComp);
+	controlPoints.erase(unique(controlPoints.begin(), controlPoints.end(), 
+		[](const CurvePoint P1, const CurvePoint P2) -> bool {
+			return P1.time == P2.time;
+		}
+	), controlPoints.end());
 	return;
 }
 
