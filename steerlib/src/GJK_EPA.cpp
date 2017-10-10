@@ -178,7 +178,6 @@ bool SteerLib::GJK_EPA::containsOrigin(std::vector<Util::Vector>& simplexW, Util
 			d = acPerp;
 		}
 		else{
-			printf("ffffff\n");
 			return true;
 		}
 	}
@@ -213,8 +212,8 @@ Util::Vector SteerLib::GJK_EPA::SimplexPointw(const std::vector<Util::Vector>& _
 	highest = -FLT_MAX;
 	Util::Vector supportB(0, 0, 0);
 
-	for (int i=0; i<_shapeA.size(); i++) {
-		Util::Vector v = _shapeA[i];
+	for (int i=0; i<_shapeB.size(); i++) {
+		Util::Vector v = _shapeB[i];
 		float dotty = dot(v, -d);
 		if (dotty > highest) {
 			highest = dotty;
