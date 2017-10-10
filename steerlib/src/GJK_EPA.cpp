@@ -73,6 +73,46 @@ bool SteerLib::GJK_EPA::EPA(float& return_penetration_depth, Util::Vector& retur
 }
 
 bool SteerLib::GJK_EPA::containsOrigin(std::vector<Util::Vector>& simplexW, Util::Vector& d) {
+	//declare all variable needed
+	Util::Vector a;
+	Util::Vector a0;
+	Util::Vector b;
+	Util::Vector c;
+	Util::Vector ab;
+	Util::Vector ac;
+	Util::Vector abPerp;
+	Util::Vector acPerp;
+
+	//initialized
+	a = simplexW.back();
+	a0 = a * -1; 
+
+	//algorithm
+	if(simplexW.size() == 3){
+		b = simplexW.front();
+		c = simplexW.at(1);
+		ab = b-a;
+		ac = c-a;
+		abPerp = cross(cross(ac,ab),ab);
+		acPerp = cross(cross(ab,ac),ac);
+		if(dot(abPerp,a0) > 0){
+			simplexW.earse(simplexW.begin()+1);
+			d = abPerp;
+		}
+		else if(dot(acPerp,a0) > 0){
+			simplexW.earse(simplexW.begin());
+			d = acPerp;
+		}
+		else{
+			return true;
+		}
+	}
+	else{
+		b = simplexW.front();
+		ab = b-a;
+		abPerp = cross(cross(ac,ab),ab);
+		d = abPerp;
+	}
 	return false;
 }
 
