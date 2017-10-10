@@ -64,8 +64,86 @@ bool SteerLib::GJK_EPA::GJK(const std::vector<Util::Vector>& _shapeA,
 	return false;
 
 }
-bool SteerLib::GJK_EPA::EPA(float& return_penetration_depth, Util::Vector& return_penetration_vector, const std::vector<Util::Vector>& _shapeA, const std::vector<Util::Vector>& _shapeB, std::vector<Util::Vector>& simplexW) {
-	return false;
+bool SteerLib::GJK_EPA::EPA(float& return_penetration_depth, 
+							Util::Vector& return_penetration_vector, 
+							const std::vector<Util::Vector>& _shapeA, 
+							const std::vector<Util::Vector>& _shapeB, 
+							std::vector<Util::Vector>& simplexW) {
+	double Error=0.01;
+
+	double MinDistance;
+	int index;
+	Util::Vector norm;
+	while(true){
+		findClosestEdge(simplexW,MinDistance,index,norm);
+		Util::Vector p=GetSupport(_shapeA, _shapeB, norm);
+
+		double d=dot(p,norm);
+		if(d-MinDistance<Error){
+			//normal=e.normal
+			return_penetration_vector=norm;
+			return_penetration_depth=d;
+			return true;
+		}else{
+			simplexW.insert(simplexW.begin()+index,p);
+		}
+	}
+}
+
+Util::Vector GetSupport(std::vector<Util::Vector> _shapeA, std::vector<Util::Vector> _shapeB, Util::Vector norm){
+	Util::Vector v1, v2;
+
+	//get furthest point for v1, keep updating
+	int v1i=GetFurthest(norm,_shapeA);
+	int v2i=GetFurthest(-1*norm, _shapeB);
+	v1=_shapeA[v1i];
+	v2=_shapeB[v2i];
+	return v1-v2;
+}
+
+int GetFurthest(Util::Vector norm, std::vector<Util::Vector>_shape){
+	double MaxDistance=norm*_shape[0];
+	int MaxIndex=0;
+	//for ever point, update new max distance when there is larger distance
+	for(int i=1; i<_shape.size();i++){
+		if(norm*_shape[i]>MaxDistance){
+			MaxDistance=norm*_shape[i];
+			MaxIndex=0;
+		}
+	}
+	return MaxIndex;
+}
+
+void findClosestEdge(std::vector<Util::Vector>& simplex,double & MinDistance,int & index,Util::Vector& norm){
+	//update distance everytime finds a smaller distance
+	MinDistance = FLT_MAX;
+
+	//for each
+	for(int i=0; i<simplex.size();i++){
+		//get next points index
+		int j = i+1 == simplex.size()? 0: i+1;
+
+		//get current point and next point
+		Util::Vector a = simplex[i]; //current
+		Util::Vector b = simplex[j]; //next
+
+		//edge vector
+		Util::Vector e= b.operator-(a);
+
+		Util::Vector oa=a;
+
+		Util::Vector n = normalize(cross(cross(e,oa),e));
+
+		//calculate distance between origin and edge
+		double d=dot(n,a);
+
+		//see if d is smaller than mindistance
+		if(d<MinDistance){
+			MinDistance=d;
+			index=j;
+			norm=n;
+		}
+	}
 }
 
 bool SteerLib::GJK_EPA::containsOrigin(std::vector<Util::Vector>& simplexW, Util::Vector& d) {
