@@ -29,10 +29,6 @@ bool SteerLib::GJK_EPA::intersect(float& return_penetration_depth,
 	// There is no collision
 }
 
-//calculate dot product
-float SteerLib::GJK_EPA::dot(Util::Vector& v1, Util::Vector& v2){
-	return (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);
-}
 
 bool SteerLib::GJK_EPA::GJK(const std::vector<Util::Vector>& _shapeA, 
 		const std::vector<Util::Vector>& _shapeB, 
@@ -96,11 +92,11 @@ bool SteerLib::GJK_EPA::containsOrigin(std::vector<Util::Vector>& simplexW, Util
 		abPerp = cross(cross(ac,ab),ab);
 		acPerp = cross(cross(ab,ac),ac);
 		if(dot(abPerp,a0) > 0){
-			simplexW.earse(simplexW.begin()+1);
+			simplexW.erase(simplexW.begin()+1);
 			d = abPerp;
 		}
 		else if(dot(acPerp,a0) > 0){
-			simplexW.earse(simplexW.begin());
+			simplexW.erase(simplexW.begin());
 			d = acPerp;
 		}
 		else{
