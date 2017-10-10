@@ -90,7 +90,7 @@ bool SteerLib::GJK_EPA::EPA(float& return_penetration_depth,
 	}
 }
 
-Util::Vector GetSupport(std::vector<Util::Vector> _shapeA, std::vector<Util::Vector> _shapeB, Util::Vector norm){
+Util::Vector SteerLib::GJK_EPA::GetSupport(std::vector<Util::Vector> _shapeA, std::vector<Util::Vector> _shapeB, Util::Vector norm){
 	Util::Vector v1, v2;
 
 	//get furthest point for v1, keep updating
@@ -101,7 +101,7 @@ Util::Vector GetSupport(std::vector<Util::Vector> _shapeA, std::vector<Util::Vec
 	return v1-v2;
 }
 
-int GetFurthest(Util::Vector norm, std::vector<Util::Vector>_shape){
+int SteerLib::GJK_EPA::GetFurthest(Util::Vector norm, std::vector<Util::Vector> _shape){
 	double MaxDistance=norm*_shape[0];
 	int MaxIndex=0;
 	//for ever point, update new max distance when there is larger distance
@@ -114,7 +114,7 @@ int GetFurthest(Util::Vector norm, std::vector<Util::Vector>_shape){
 	return MaxIndex;
 }
 
-void findClosestEdge(std::vector<Util::Vector>& simplex,double & MinDistance,int & index,Util::Vector& norm){
+void SteerLib::GJK_EPA::findClosestEdge(std::vector<Util::Vector>& simplex,double & MinDistance,int & index,Util::Vector& norm){
 	//update distance everytime finds a smaller distance
 	MinDistance = FLT_MAX;
 

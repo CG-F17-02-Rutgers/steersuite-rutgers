@@ -137,7 +137,7 @@ namespace SteerLib
 		static bool containsOrigin(std::vector<Util::Vector>& simplexW, Util::Vector& d);
 		static Util::Vector SimplexPointw(const std::vector<Util::Vector>& _shapeA, const std::vector<Util::Vector>& _shapeB, Util::Vector& d);
 		static void findClosestEdge(std::vector<Util::Vector>& simplex, double & MinDistance, int & index, Util::Vector& norm);
-		static int GetFurthest(Util::Vector norm, std::vector<Util::Vector>_shape);	
+		static int GetFurthest(Util::Vector norm, std::vector<Util::Vector> _shape);	
 		static Util::Vector GetSupport(std::vector<Util::Vector> _shapeA, std::vector<Util::Vector> _shapeB, Util::Vector norm);
 }; // class GJK_EPA
 
