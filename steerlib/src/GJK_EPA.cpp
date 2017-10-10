@@ -50,7 +50,7 @@ bool SteerLib::GJK_EPA::GJK(const std::vector<Util::Vector>& _shapeA,
 
 		//Check if this next w passes through origin
 		float dotty = dot(nextVector, d);
-		if (dotty <= 0) {
+		if (dotty < 0) {
 			return false;
 		}
 		else {
@@ -100,6 +100,7 @@ bool SteerLib::GJK_EPA::containsOrigin(std::vector<Util::Vector>& simplexW, Util
 			d = acPerp;
 		}
 		else{
+			printf("ffffff\n");
 			return true;
 		}
 	}
