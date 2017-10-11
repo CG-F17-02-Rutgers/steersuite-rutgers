@@ -22,8 +22,9 @@ bool SteerLib::GJK_EPA::intersect(float& return_penetration_depth,
 	if (collisionExist == true){
 		//Collision exists. Calculate the penetration depth and penetration vector.
 		EPA(return_penetration_depth, return_penetration_vector, _shapeA, _shapeB, simplexW);
-		
-		return true;
+		if(return_penetration_depth != 0.0f){
+			return true;
+		}
 	}
 	return false;
 	// There is no collision
