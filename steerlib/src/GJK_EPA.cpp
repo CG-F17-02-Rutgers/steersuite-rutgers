@@ -62,96 +62,30 @@ bool SteerLib::GJK_EPA::GJK(const std::vector<Util::Vector>& _shapeA,
 		}
 	}
 	return false;
+}
 
-}
-void getNearestEdge(std::vector<Util::Vector>& simplex, float& distance, Util::Vector& normal, int& index)
-{
-  distance = FLT_MAX;
-  
-  for(int i = 0; i < simplex.size(); i++)
-  {
-   int j;
-   if(i+1 == simplex.size())
-     j = 0;
-   else
-     j = i+1;
-   
-   Util::Vector v1 = simplex[i];
-   Util::Vector v2 = simplex[j];
-   
-   Util::Vector edge = v2-v1;
-   
-   Util::Vector originTov1 = v1;
-   
-   Util::Vector n = originTov1*(edge*edge) - edge*(edge*originTov1); //triple product to get vector from edge towards the originTov1
-   n = n/sqrt(pow(n.x,2)+pow(n.y,2)+pow(n.z,2)); //normalize
-   float dist = n*v1; //distance from origin to edge
-    
-    if(dist < distance)
-    {
-     distance = dist;
-     index = j;
-     normal = n;
-    }
-   
-  }
-  
-}
 bool SteerLib::GJK_EPA::EPA(float& return_penetration_depth, 
 							Util::Vector& return_penetration_vector, 
 							const std::vector<Util::Vector>& _shapeA, 
 							const std::vector<Util::Vector>& _shapeB, 
 							std::vector<Util::Vector>& simplexW) {
-	while(true)
-  {
-    float distance;
-    int index;
-    Util::Vector normal;
-    
-    getNearestEdge(simplexW, distance, normal, index);
-    
-    Util::Vector sup = SimplexPointw(_shapeA, _shapeB, normal); //get support point in direction of edge's normal
-    
-    float d = sup*normal;
-    
-    if(d - distance <= 0)
-    {
-      return_penetration_vector = normal;
-      return_penetration_depth = distance;
-      return true;
-      
-    }
-    
-    else
-    {
-     simplexW.insert(simplexW.begin()+index, sup); 
-    }
-    
-  }
-}
+	double MinDistance;
+	int index;
+	Util::Vector norm;
+	while(true){
+		findClosestEdge(simplexW,MinDistance,index,norm);
+		Util::Vector p=SimplexPointw(_shapeA, _shapeB, norm);
 
-Util::Vector SteerLib::GJK_EPA::GetSupport(std::vector<Util::Vector> _shapeA, std::vector<Util::Vector> _shapeB, Util::Vector norm){
-	Util::Vector v1, v2;
-
-	//get furthest point for v1, keep updating
-	int v1i=GetFurthest(norm,_shapeA);
-	int v2i=GetFurthest(-1*norm, _shapeB);
-	v1=_shapeA[v1i];
-	v2=_shapeB[v2i];
-	return v1-v2;
-}
-
-int SteerLib::GJK_EPA::GetFurthest(Util::Vector norm, std::vector<Util::Vector> _shape){
-	double MaxDistance=norm*_shape[0];
-	int MaxIndex=0;
-	//for ever point, update new max distance when there is larger distance
-	for(int i=1; i<_shape.size();i++){
-		if(norm*_shape[i]>MaxDistance){
-			MaxDistance=norm*_shape[i];
-			MaxIndex=0;
+		double d=dot(p,norm);
+		if(d-MinDistance<= 0){
+			//normal=e.normal
+			return_penetration_vector=norm;
+			return_penetration_depth=d;
+			return true;
+		}else{
+			simplexW.insert(simplexW.begin()+index,p);
 		}
 	}
-	return MaxIndex;
 }
 
 void SteerLib::GJK_EPA::findClosestEdge(std::vector<Util::Vector>& simplex,double & MinDistance,int & index,Util::Vector& norm){
