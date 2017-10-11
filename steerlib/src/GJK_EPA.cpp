@@ -35,7 +35,7 @@ bool SteerLib::GJK_EPA::GJK(const std::vector<Util::Vector>& _shapeA,
 		std::vector<Util::Vector>& simplexW) {
 
 	//First starting point
-	Util::Vector d(1, 0, 0);
+	Util::Vector d(1, 0, 1);
 
 	//Calculation for first Simplex point (Related Lecture Slides: Page 38, 50, 53)
 	Util::Vector w0 = SimplexPointw(_shapeA, _shapeB, d);
@@ -64,30 +64,70 @@ bool SteerLib::GJK_EPA::GJK(const std::vector<Util::Vector>& _shapeA,
 	return false;
 
 }
+void getNearestEdge(std::vector<Util::Vector>& simplex, float& distance, Util::Vector& normal, int& index)
+{
+  distance = FLT_MAX;
+  
+  for(int i = 0; i < simplex.size(); i++)
+  {
+   int j;
+   if(i+1 == simplex.size())
+     j = 0;
+   else
+     j = i+1;
+   
+   Util::Vector v1 = simplex[i];
+   Util::Vector v2 = simplex[j];
+   
+   Util::Vector edge = v2-v1;
+   
+   Util::Vector originTov1 = v1;
+   
+   Util::Vector n = originTov1*(edge*edge) - edge*(edge*originTov1); //triple product to get vector from edge towards the originTov1
+   n = n/sqrt(pow(n.x,2)+pow(n.y,2)+pow(n.z,2)); //normalize
+   float dist = n*v1; //distance from origin to edge
+    
+    if(dist < distance)
+    {
+     distance = dist;
+     index = j;
+     normal = n;
+    }
+   
+  }
+  
+}
 bool SteerLib::GJK_EPA::EPA(float& return_penetration_depth, 
 							Util::Vector& return_penetration_vector, 
 							const std::vector<Util::Vector>& _shapeA, 
 							const std::vector<Util::Vector>& _shapeB, 
 							std::vector<Util::Vector>& simplexW) {
-	double Error=0.01;
-
-	double MinDistance;
-	int index;
-	Util::Vector norm;
-	while(true){
-		findClosestEdge(simplexW,MinDistance,index,norm);
-		Util::Vector p=GetSupport(_shapeA, _shapeB, norm);
-
-		double d=dot(p,norm);
-		if(d-MinDistance<Error){
-			//normal=e.normal
-			return_penetration_vector=norm;
-			return_penetration_depth=d;
-			return true;
-		}else{
-			simplexW.insert(simplexW.begin()+index,p);
-		}
-	}
+	while(true)
+  {
+    float distance;
+    int index;
+    Util::Vector normal;
+    
+    getNearestEdge(simplexW, distance, normal, index);
+    
+    Util::Vector sup = SimplexPointw(_shapeA, _shapeB, normal); //get support point in direction of edge's normal
+    
+    float d = sup*normal;
+    
+    if(d - distance <= 0)
+    {
+      return_penetration_vector = normal;
+      return_penetration_depth = distance;
+      return true;
+      
+    }
+    
+    else
+    {
+     simplexW.insert(simplexW.begin()+index, sup); 
+    }
+    
+  }
 }
 
 Util::Vector SteerLib::GJK_EPA::GetSupport(std::vector<Util::Vector> _shapeA, std::vector<Util::Vector> _shapeB, Util::Vector norm){
@@ -154,8 +194,6 @@ bool SteerLib::GJK_EPA::containsOrigin(std::vector<Util::Vector>& simplexW, Util
 	Util::Vector c;
 	Util::Vector ab;
 	Util::Vector ac;
-	Util::Vector abPerp;
-	Util::Vector acPerp;
 
 	//initialized
 	a = simplexW.back();
@@ -163,29 +201,36 @@ bool SteerLib::GJK_EPA::containsOrigin(std::vector<Util::Vector>& simplexW, Util
 
 	//algorithm
 	if(simplexW.size() == 3){
-		b = simplexW.front();
-		c = simplexW.at(1);
+		c = simplexW.front();
+		b = simplexW.at(1);
 		ab = b-a;
 		ac = c-a;
-		abPerp = cross(cross(ac,ab),ab);
-		acPerp = cross(cross(ab,ac),ac);
-		if(dot(abPerp,a0) > 0){
-			simplexW.erase(simplexW.begin()+1);
-			d = abPerp;
+		d = Util::Vector((-1*ab.z),0,ab.x);
+		if(dot(d,c) > 0){
+			d = -1*d;
 		}
-		else if(dot(acPerp,a0) > 0){
+		if(dot(d,a0) > 0){
 			simplexW.erase(simplexW.begin());
-			d = acPerp;
+			return false;
 		}
-		else{
-			return true;
+		d = Util::Vector((-1*ac.z),0,ac.x);
+		if(dot(d,b) > 0){
+			d = -1*d;
 		}
+		if(dot(d,a0) > 0){
+			simplexW.erase(simplexW.begin()+1);
+			return false;
+		}
+		return true;
 	}
 	else{
 		b = simplexW.front();
 		ab = b-a;
-		abPerp = cross(cross(ac,ab),ab);
-		d = abPerp;
+		d = Util::Vector((-1*ab.z),0,ab.x);
+		if(dot(d,a0) < 0){
+			d = -1*d;
+		}
+		return false;
 	}
 	return false;
 }
