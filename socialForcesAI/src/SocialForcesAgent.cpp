@@ -24,6 +24,8 @@ using namespace Util;
 using namespace SocialForcesGlobals;
 using namespace SteerLib;
 
+Util::Point DPosition;
+
 // #define _DEBUG_ENTROPY 1
 
 SocialForcesAgent::SocialForcesAgent()
@@ -101,7 +103,7 @@ void SocialForcesAgent::reset(const SteerLib::AgentInitialConditions & initialCo
 	radius_ = initialConditions.radius;
 	velocity_ = normalize(Vector2(initialConditions.direction.x, initialConditions.direction.z));
 	velocity_ = velocity_ * initialConditions.speed;
-*/
+ */
 	// initialize the agent based on the initial conditions
 	_position = initialConditions.position;
 	_forward = normalize(initialConditions.direction);
@@ -149,7 +151,8 @@ void SocialForcesAgent::reset(const SteerLib::AgentInitialConditions & initialCo
 	// iterate over the sequence of goals specified by the initial conditions.
 	for (unsigned int i=0; i<initialConditions.goals.size(); i++) {
 		if (initialConditions.goals[i].goalType == SteerLib::GOAL_TYPE_SEEK_STATIC_TARGET ||
-				initialConditions.goals[i].goalType == GOAL_TYPE_AXIS_ALIGNED_BOX_GOAL)
+				initialConditions.goals[i].goalType == SteerLib::GOAL_TYPE_AXIS_ALIGNED_BOX_GOAL || 
+				initialConditions.goals[i].goalType == SteerLib::GOAL_TYPE_SEEK_DYNAMIC_TARGET) 
 		{
 			if (initialConditions.goals[i].targetIsRandom)
 			{
@@ -204,10 +207,10 @@ void SocialForcesAgent::reset(const SteerLib::AgentInitialConditions & initialCo
 			MASS;
 
 	// _velocity = _prefVelocity;
-#ifdef _DEBUG_ENTROPY
-	std::cout << "goal direction is: " << goalDirection << " prefvelocity is: " << prefVelocity_ <<
+    #ifdef _DEBUG_ENTROPY
+	    std::cout << "goal direction is: " << goalDirection << " prefvelocity is: " << prefVelocity_ <<
 			" and current velocity is: " << velocity_ << std::endl;
-#endif
+    #endif
 
 
 	// std::cout << "Parameter spec: " << _SocialForcesParams << std::endl;
@@ -420,10 +423,10 @@ Util::Vector SocialForcesAgent::calcProximityForce(float dt)
 
 Util::Vector SocialForcesAgent::calcRepulsionForce(float dt)
 {
-#ifdef _DEBUG_
+ #ifdef _DEBUG_
 	std::cout << "wall repulsion; " << calcWallRepulsionForce(dt) << " agent repulsion " <<
 			(_SocialForcesParams.sf_agent_repulsion_importance * calcAgentRepulsionForce(dt)) << std::endl;
-#endif
+ #endif
 	return calcWallRepulsionForce(dt) + (_SocialForcesParams.sf_agent_repulsion_importance * calcAgentRepulsionForce(dt));
 }
 
@@ -763,6 +766,29 @@ void SocialForcesAgent::computeNeighbors()
 }*/
 
 
+//A3 Choice 1: Leader Following
+Util::Vector SocialForcesAgent::LeaderFollowing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection){
+	//get all neighbors of agent
+	std::set<SteerLib::SpatialDatabaseItemPtr> Neighbors;
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(Neighbors,-100.0f,100.0f,-100.0f,100.0f,dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+	SteerLib::AgentInitialConditions AIC;
+
+	//loop through all agent's neighbors
+	for(std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor=Neighbors.begin();neighbor!=Neighbors.end();neighbor++){
+		//if is self, apply regular force
+		if((*neighbor)->isAgent()){
+			if(goalInfo.goalType==GOAL_TYPE_SEEK_DYNAMIC_TARGET){
+				goalDirection=normalize(DPosition-position());
+			}else if(goalInfo.goalType==GOAL_TYPE_SEEK_STATIC_TARGET){
+				DPosition=position();
+				goalDirection=normalize(_currentLocalTarget-position());
+			}
+		}
+		return goalDirection;
+	}
+}
+
+
 void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
 {
 	// std::cout << "_SocialForcesParams.rvo_max_speed " << _SocialForcesParams._SocialForcesParams.rvo_max_speed << std::endl;
@@ -777,22 +803,33 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	SteerLib::AgentGoalInfo goalInfo = _goalQueue.front();
 	Util::Vector goalDirection;
 	// std::cout << "midtermpath empty: " << _midTermPath.empty() << std::endl;
-	if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) )
-	{
-		if (reachedCurrentWaypoint())
-		{
-			this->updateMidTermPath();
-		}
 
-		this->updateLocalTarget();
+	/////////////////////////////////apply forces here///////////////////////////////////////////////////////////////
 
-		goalDirection = normalize(_currentLocalTarget - position());
+	goalDirection=LeaderFollowing(goalInfo,goalDirection);
 
-	}
-	else
-	{
-		goalDirection = normalize(goalInfo.targetLocation - position());
-	}
+
+
+
+
+
+
+	// if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) )
+	// {
+	// 	if (reachedCurrentWaypoint())
+	// 	{
+	// 		this->updateMidTermPath();
+	// 	}
+
+	// 	this->updateLocalTarget();
+
+	// 	goalDirection = normalize(_currentLocalTarget - position());
+
+	// }
+	// else
+	// {
+	// 	goalDirection = normalize(goalInfo.targetLocation - position());
+	// }
 	// _prefVelocity = goalDirection * PERFERED_SPEED;
 	Util::Vector prefForce = (((goalDirection * PERFERED_SPEED) - velocity()) / (_SocialForcesParams.sf_acceleration/dt)); //assumption here
 	prefForce = prefForce + velocity();
@@ -806,12 +843,12 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 		// throw GenericException("SocialForces numerical issue");
 	}
 	Util::Vector proximityForce = calcProximityForce(dt);
-// #define _DEBUG_ 1
-#ifdef _DEBUG_
+ // #define _DEBUG_ 1
+ #ifdef _DEBUG_
 	std::cout << "agent" << id() << " repulsion force " << repulsionForce << std::endl;
 	std::cout << "agent" << id() << " proximity force " << proximityForce << std::endl;
 	std::cout << "agent" << id() << " pref force " << prefForce << std::endl;
-#endif
+ #endif
 	// _velocity = _newVelocity;
 	int alpha=1;
 	if ( repulsionForce.length() > 0.0)
@@ -825,9 +862,9 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 
 	_velocity = clamp(velocity(), _SocialForcesParams.sf_max_speed);
 	_velocity.y=0.0f;
-#ifdef _DEBUG_
+ #ifdef _DEBUG_
 	std::cout << "agent" << id() << " speed is " << velocity().length() << std::endl;
-#endif
+ #endif
 	_position = position() + (velocity() * dt);
 	// A grid database update should always be done right after the new position of the agent is calculated
 	/*
@@ -839,7 +876,7 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	Util::AxisAlignedBox newBounds(_position.x - _radius, _position.x + _radius, 0.0f, 0.0f, _position.z - _radius, _position.z + _radius);
 	getSimulationEngine()->getSpatialDatabase()->updateObject( this, oldBounds, newBounds);
 
-/*
+ /*
 	if ( ( !_waypoints.empty() ) && (_waypoints.front() - position()).length() < radius()*WAYPOINT_THRESHOLD_MULTIPLIER)
 	{
 		_waypoints.erase(_waypoints.begin());
@@ -886,11 +923,11 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 
 void SocialForcesAgent::draw()
 {
-#ifdef ENABLE_GUI
+ #ifdef ENABLE_GUI
 	AgentInterface::draw();
 	// if the agent is selected, do some annotations just for demonstration
 
-#ifdef DRAW_COLLISIONS
+ #ifdef DRAW_COLLISIONS
 	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
 	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, _position.x-(this->_radius * 3), _position.x+(this->_radius * 3),
 			_position.z-(this->_radius * 3), _position.z+(this->_radius * 3), dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
@@ -912,8 +949,8 @@ void SocialForcesAgent::draw()
 			// Util::DrawLib::drawStar(this->position(), Util::Vector(1,0,0), 1.14f, gRed);
 		}
 	}
-#endif
-#ifdef DRAW_HISTORIES
+ #endif
+ #ifdef DRAW_HISTORIES
 	__oldPositions.push_back(position());
 	int points = 0;
 	float mostPoints = 100.0f;
@@ -926,9 +963,9 @@ void SocialForcesAgent::draw()
 		DrawLib::drawLineAlpha(__oldPositions.at(q), __oldPositions.at(q-1),gBlack, q/(float)__oldPositions.size());
 	}
 
-#endif
+ #endif
 
-#ifdef DRAW_ANNOTATIONS
+ #ifdef DRAW_ANNOTATIONS
 
 	for (int i=0; ( _waypoints.size() > 1 ) && (i < (_waypoints.size() - 1)); i++)
 	{
@@ -980,8 +1017,8 @@ void SocialForcesAgent::draw()
 	}
 	*/
 
-#endif
+ #endif
 
-#endif
+ #endif
 }
 
