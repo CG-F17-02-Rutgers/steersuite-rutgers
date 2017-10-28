@@ -771,19 +771,45 @@ Util::Vector SocialForcesAgent::LeaderFollowing(SteerLib::AgentGoalInfo goalInfo
 	//get all neighbors of agent
 	std::set<SteerLib::SpatialDatabaseItemPtr> Neighbors;
 	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(Neighbors,-100.0f,100.0f,-100.0f,100.0f,dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
-	SteerLib::AgentInitialConditions AIC;
+	
+	//initialize all agent and conditions
+	//SteerLib::AgentInitialConditions AIC;
+	SocialForcesAgent* leader;
+
+	 // Util::Point leadertarget=this->_initialConditions.targetLocation;
+
 	//move leader
 	if(goalInfo.goalType==GOAL_TYPE_SEEK_STATIC_TARGET){
-		printf("(%f,%f)",_currentLocalTarget.x, _currentLocalTarget.z);
+
+		leader=this;
+		this->_color = Util::gRed;
 		DPosition=position();
-		goalDirection=normalize(_currentLocalTarget-position());
+
+		if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) ){
+			if (reachedCurrentWaypoint()){
+				this->updateMidTermPath();
+			}
+
+			this->updateLocalTarget();
+
+			goalDirection = normalize(_currentLocalTarget - position());
+
+		}else{
+			goalDirection = normalize(goalInfo.targetLocation - position());
+		}
+		_prefVelocity = goalDirection * PERFERED_SPEED;
 	}
 
 	//loop through all agent's neighbors
 	for(std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor=Neighbors.begin();neighbor!=Neighbors.end();neighbor++){
 		if((*neighbor)->isAgent()){
 			if(goalInfo.goalType==GOAL_TYPE_SEEK_DYNAMIC_TARGET){ //if is follower, update goaldirection base on dposition
-				goalDirection=normalize(DPosition-position());
+				if(true){//if leader is still alive
+					goalDirection=normalize(DPosition-position());
+				}else{//if leader is not alive, manually set target for the agents somehow
+
+				}
+				
 			}
 		}
 		return goalDirection;
@@ -802,6 +828,71 @@ Util::Vector SocialForcesAgent::growingSpiral(float dt) {
  		v = r * Util::Vector(-sin(a), 0.0f, cos(a));
 	}
 	return v * dt;
+}
+std::vector<SteerLib::AgentInterface*> SocialForcesAgent::getNeighbors(float search_radius){
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors,
+ 	_position.x - (this->_radius + search_radius),
+ 	_position.x + (this->_radius + search_radius),
+	_position.z - (this->_radius + search_radius),
+  	_position.z + (this->_radius + search_radius),
+  	dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+
+ 	SteerLib::AgentInterface *tmp_agent;
+ 	Util::Vector neighbor_avg(0, 0, 0);
+ 	std::vector<SteerLib::AgentInterface *> neighbors;
+
+ 	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbour = _neighbors.begin(); neighbour != _neighbors.end(); neighbour++) {
+ 		if ((*neighbour)->isAgent()) {
+    		tmp_agent = dynamic_cast<SteerLib::AgentInterface *>(*neighbour);
+  		}else {
+   			continue;
+  		}
+  		if (id() != tmp_agent->id()) {
+   			neighbors.push_back(tmp_agent);
+  		}
+ 	}
+
+
+ 	return neighbors;
+}
+
+Util::Vector SocialForcesAgent::calcUnalignedCollisionAvoidance(SteerLib::AgentGoalInfo goalInfo) {
+ 	if(_radius == 1.0){
+  		this->_color = Util::gBlack;
+  		return{ 0.0f, 0.0f, 0.0f };
+	}
+ 	std::vector<SteerLib::AgentInterface *> neighbor_agents = getNeighbors(20.0f);
+ 	//std::cerr << neighbor_agents.size() << std::endl;
+
+ 	float ahead_time = 5.0f;
+ 	for (std::vector<SteerLib::AgentInterface *>::iterator tmp_ag = neighbor_agents.begin(); tmp_ag != neighbor_agents.end(); tmp_ag++) {
+  		if((*tmp_ag)->radius() == 1.0f){
+  			//only calculate agents that come from another direction
+   			Util::Vector ahead = {_velocity.x * ahead_time + _position.x,0,_velocity.z * ahead_time + _position.z };
+   			Util::Vector ahead2 = {_velocity.x * ahead_time/2 + _position.x,0,_velocity.z * ahead_time/2 + _position.z };
+   			if(sqrt((ahead.x - (*tmp_ag)->position().x) * (ahead.x - (*tmp_ag)->position().x)  + (ahead.z - (*tmp_ag)->position().z) * (ahead.z - (*tmp_ag)->position().z)) <= 3.0 || 
+    			sqrt((ahead2.x - (*tmp_ag)->position().x) * (ahead2.x - (*tmp_ag)->position().x)  + (ahead2.z - (*tmp_ag)->position().z) * (ahead2.z - (*tmp_ag)->position().z)) <= 3.0){
+    			Util::Vector current_direction = _currentLocalTarget - _position;
+    			Util::Vector new_direction = { -current_direction.z, 0, current_direction.x };
+
+    			return normalize(new_direction);
+   			}
+  		}
+ 	}
+ 	if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) ){
+  		if (reachedCurrentWaypoint()){
+   			this->updateMidTermPath();
+  		}
+
+  		this->updateLocalTarget();
+
+  		return normalize(_currentLocalTarget - position());
+
+ 	}else{
+  		return normalize(goalInfo.targetLocation - position());
+ 	}
 }
 
 
@@ -823,6 +914,8 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	/////////////////////////////////apply forces here///////////////////////////////////////////////////////////////
 
 	goalDirection=LeaderFollowing(goalInfo,goalDirection);
+	//goalDirection=calcUnalignedCollisionAvoidance(goalInfo);
+	//goalDirection=growingSpiral(dt);
 
 
 
@@ -830,23 +923,11 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 
 
 
-	// if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) )
-	// {
-	// 	if (reachedCurrentWaypoint())
-	// 	{
-	// 		this->updateMidTermPath();
-	// 	}
 
-	// 	this->updateLocalTarget();
 
-	// 	goalDirection = normalize(_currentLocalTarget - position());
 
-	// }
-	// else
-	// {
-	// 	goalDirection = normalize(goalInfo.targetLocation - position());
-	// }
-	// _prefVelocity = goalDirection * PERFERED_SPEED;
+
+
 
 	Util::Vector prefForce = (((goalDirection * PERFERED_SPEED) - velocity()) / (_SocialForcesParams.sf_acceleration/dt)); //assumption here
 	prefForce = prefForce + velocity();

@@ -64,6 +64,8 @@ public:
 
 	Util::Vector LeaderFollowing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
 	Util::Vector growingSpiral(float dt);
+	Util::Vector calcUnalignedCollisionAvoidance(SteerLib::AgentGoalInfo goalInfo);
+	std::vector<SteerLib::AgentInterface*> getNeighbors(float search_radius);
 
 
 
