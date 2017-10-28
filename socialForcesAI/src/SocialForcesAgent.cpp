@@ -772,20 +772,36 @@ Util::Vector SocialForcesAgent::LeaderFollowing(SteerLib::AgentGoalInfo goalInfo
 	std::set<SteerLib::SpatialDatabaseItemPtr> Neighbors;
 	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(Neighbors,-100.0f,100.0f,-100.0f,100.0f,dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
 	SteerLib::AgentInitialConditions AIC;
+	//move leader
+	if(goalInfo.goalType==GOAL_TYPE_SEEK_STATIC_TARGET){
+		printf("(%f,%f)",_currentLocalTarget.x, _currentLocalTarget.z);
+		DPosition=position();
+		goalDirection=normalize(_currentLocalTarget-position());
+	}
 
 	//loop through all agent's neighbors
 	for(std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor=Neighbors.begin();neighbor!=Neighbors.end();neighbor++){
-		//if is self, apply regular force
 		if((*neighbor)->isAgent()){
-			if(goalInfo.goalType==GOAL_TYPE_SEEK_DYNAMIC_TARGET){
+			if(goalInfo.goalType==GOAL_TYPE_SEEK_DYNAMIC_TARGET){ //if is follower, update goaldirection base on dposition
 				goalDirection=normalize(DPosition-position());
-			}else if(goalInfo.goalType==GOAL_TYPE_SEEK_STATIC_TARGET){
-				DPosition=position();
-				goalDirection=normalize(_currentLocalTarget-position());
 			}
 		}
 		return goalDirection;
 	}
+	return goalDirection;
+}
+
+Util::Vector SocialForcesAgent::growingSpiral(float dt) {
+	Util::Point pos = position();// - startPos;
+	float a = atan(pos.z / (pos.x + 0.001f));
+	float r = (8.0f * sqrtf(pos.x * pos.x + pos.z * pos.z) + 1.0f);
+	Util::Vector v;
+	if (pos.x < 0.0f) {
+ 		v = r * Util::Vector(sin(a), 0.0f, -cos(a));
+	} else {
+ 		v = r * Util::Vector(-sin(a), 0.0f, cos(a));
+	}
+	return v * dt;
 }
 
 
@@ -831,6 +847,7 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	// 	goalDirection = normalize(goalInfo.targetLocation - position());
 	// }
 	// _prefVelocity = goalDirection * PERFERED_SPEED;
+
 	Util::Vector prefForce = (((goalDirection * PERFERED_SPEED) - velocity()) / (_SocialForcesParams.sf_acceleration/dt)); //assumption here
 	prefForce = prefForce + velocity();
 	// _velocity = prefForce;

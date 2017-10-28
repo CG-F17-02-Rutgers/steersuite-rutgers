@@ -63,7 +63,7 @@ public:
 	// bool compareDist(SteerLib::AgentInterface * a1, SteerLib::AgentInterface * a2 );
 
 	Util::Vector LeaderFollowing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
-
+	Util::Vector growingSpiral(float dt);
 
 
 
